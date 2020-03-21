@@ -18,6 +18,11 @@ halide_library(adaptive_contrast SRCS adaptive_contrast.cpp)
 
 # sRGB to Linear RGB
 halide_library(srgb_to_linearrgb SRCS sRGB_to_linearRGB.cpp)
+
+# Image range scaling
+halide_library(scale_to_float SRCS normalization.cpp)
+halide_library(scale_from_float SRCS normalization.cpp)
+halide_library(clip_float SRCS normalization.cpp)
 # *** 
 
 add_executable(image-processing main.cpp)
@@ -32,6 +37,9 @@ find_library(PNG_LIBRARY png)
 
 target_link_libraries(image-processing PUBLIC adaptive_contrast)
 target_link_libraries(image-processing PUBLIC srgb_to_linearrgb)
+target_link_libraries(image-processing PUBLIC scale_to_float)
+target_link_libraries(image-processing PUBLIC scale_from_float)
+target_link_libraries(image-processing PUBLIC clip_float)
 target_link_libraries(image-processing PUBLIC ${HALIDE_LIBRARY} ${PTHREAD_LIBRARY} ${JPEG_LIBRARY} ${PNG_LIBRARY} ${CMAKE_DL_LIBS})
 
 

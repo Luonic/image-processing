@@ -13,6 +13,9 @@ using namespace Halide::Tools;
 #include <filesystem>
 namespace fs = std::filesystem;
 
+#include <scale_to_float.h>
+#include <scale_from_float.h>
+#include <clip_float.h>
 #include <adaptive_contrast.h>
 #include <srgb_to_linearrgb.h>
 
@@ -31,34 +34,26 @@ int main(int argc, char **argv) {
     // brighter(x, y, c) = value;
 
 
-    Buffer<uint8_t> input = load_image("/home/alex/Code/image-processing/images/image.jpg");
+    Halide::Runtime::Buffer<float> input = load_and_convert_image("/home/alex/Code/image-processing/images/image.jpg");
 
-    Halide::Func adaptive_contrast("adaptive_contrast");
-    Halide::Var x, y, c;
+    // Halide::Func adaptive_contrast("adaptive_contrast");
+    // Halide::Var x, y, c;
     // Halide::Var turnpoint, strength, protect_whites_amount, protect_shadows_amount;
     float turnpoint = 0.25f;
-    float strength = 2.0f;
+    float strength = 3.0f;
 
     float protect_whites = 1.0;
     float protect_blacks = 1.0;
     
     // For each pixel of the input image.
-    Halide::Expr image = input(x, y, c);
+    // Halide::Expr image = input(x, y, c);
     // Cast it to a floating point value.
-    image = Halide::cast<float>(image);
-    image = image / 255.0f;
-    Expr centered_image = (image - turnpoint);
-    Expr image_contrasted = (centered_image * strength + turnpoint);
-    Expr whites_mask =  centered_image / (1 - turnpoint);
-    Expr blacks_mask = centered_image / -turnpoint;
-    Expr opacity = select(image > turnpoint, whites_mask * protect_whites, blacks_mask * protect_blacks);
-    image_contrasted = image_contrasted * (1 - opacity) + image * opacity;
-    image_contrasted = Halide::max(Halide::min(image_contrasted * 255, 255.0f), 0.0f);
-    image_contrasted = Halide::cast<uint8_t>(image_contrasted);
-    adaptive_contrast(x, y, c) = image_contrasted;
-    Halide::Buffer<uint8_t> output = adaptive_contrast.realize(input.width(), input.height(), input.channels());
-    save_image(output, "/home/alex/Code/image-processing/images/image_processed.jpg");
-
+    // image = Halide::cast<float>(image);
+    // image = image / 255.0f;
+    Halide::Runtime::Buffer<float> output = Halide::Runtime::Buffer<float>::make_with_shape_of(input);
+    adaptive_contrast(input, turnpoint, strength, protect_whites, protect_blacks, output);
+    clip_float(output, output);
+    convert_and_save_image(output, "/home/alex/Code/image-processing/images/image_processed.jpg");
     printf("Success!\n");
 
     return 0;
