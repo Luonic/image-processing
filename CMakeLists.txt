@@ -8,12 +8,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED on)
 include(CTest)
 enable_testing()
 
-add_subdirectory(generators)
-# include(${CMAKE_CURRENT_SOURCE_DIR}/generators/CMakeLists.txt)
+set(HALIDE_DISTRIB_DIR "/home/alex/Code/Halide")
+include("${HALIDE_DISTRIB_DIR}/halide_config.cmake")
+include("${HALIDE_DISTRIB_DIR}/halide.cmake")
+
+# *** GENERATORS ***
+# Adaptive contrast
+halide_library(adaptive_contrast SRCS adaptive_contrast.cpp)
+
+# sRGB to Linear RGB
+halide_library(srgb_to_linearrgb SRCS sRGB_to_linearRGB.cpp)
+# *** 
 
 add_executable(image-processing main.cpp)
 
 target_include_directories(image-processing PUBLIC ~/Code/Halide/include ~/Code/Halide/tools)
+# target_include_directories(image-processing PUBLIC /home/alex/Code/image-processing/build/genfiles/adaptive_contrast/adaptive_contrast.h)
 
 find_library(HALIDE_LIBRARY Halide ~/Code/Halide/bin)
 find_library(PTHREAD_LIBRARY pthread)

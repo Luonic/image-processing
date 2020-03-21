@@ -13,7 +13,8 @@ using namespace Halide::Tools;
 #include <filesystem>
 namespace fs = std::filesystem;
 
-#include <generators/adaptive_contrast.hpp>
+#include <adaptive_contrast.h>
+#include <srgb_to_linearrgb.h>
 
 int main(int argc, char **argv) {
 
