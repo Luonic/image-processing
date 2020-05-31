@@ -35,6 +35,7 @@ int main(int argc, char **argv) {
 
 
     Halide::Runtime::Buffer<float> input = load_and_convert_image("/home/alex/Code/image-processing/images/image.jpg");
+    
 
     // Halide::Func adaptive_contrast("adaptive_contrast");
     // Halide::Var x, y, c;

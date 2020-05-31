@@ -12,12 +12,24 @@ set(HALIDE_DISTRIB_DIR "/home/alex/Code/Halide")
 include("${HALIDE_DISTRIB_DIR}/halide_config.cmake")
 include("${HALIDE_DISTRIB_DIR}/halide.cmake")
 
+set(Torch_DIR ~/Code/libtorch/share/cmake/Torch/)
+set(ARCH x86)
+set(BITS 64)
+
 # *** GENERATORS ***
 # Adaptive contrast
-halide_library(adaptive_contrast SRCS adaptive_contrast.cpp)
+halide_library(adaptive_contrast 
+               SRCS adaptive_contrast.cpp 
+               HALIDE_TARGET host)
+
+# Teal-Orange split image coloring
+halide_library(coloring 
+               SRCS coloring.cpp 
+               HALIDE_TARGET host-openglcompute)
 
 # sRGB to Linear RGB
-halide_library(srgb_to_linearrgb SRCS sRGB_to_linearRGB.cpp)
+halide_library(srgb_to_linearrgb 
+               SRCS sRGB_to_linearRGB.cpp)
 
 # Image range scaling
 halide_library(scale_to_float SRCS normalization.cpp)
@@ -25,23 +37,32 @@ halide_library(scale_from_float SRCS normalization.cpp)
 halide_library(clip_float SRCS normalization.cpp)
 # *** 
 
-add_executable(image-processing main.cpp)
+
+# image processing library
+add_library(image-processing SHARED image_processing.cpp)
 
 target_include_directories(image-processing PUBLIC ~/Code/Halide/include ~/Code/Halide/tools)
-# target_include_directories(image-processing PUBLIC /home/alex/Code/image-processing/build/genfiles/adaptive_contrast/adaptive_contrast.h)
 
 find_library(HALIDE_LIBRARY Halide ~/Code/Halide/bin)
 find_library(PTHREAD_LIBRARY pthread)
-find_library(JPEG_LIBRARY jpeg)
+find_library(JPEG_LIBRARY jpeg ~/Code/libjpeg-turbo/build/)
 find_library(PNG_LIBRARY png)
 
+find_package(Torch REQUIRED)
+
 target_link_libraries(image-processing PUBLIC adaptive_contrast)
+target_link_libraries(image-processing PUBLIC coloring)
 target_link_libraries(image-processing PUBLIC srgb_to_linearrgb)
 target_link_libraries(image-processing PUBLIC scale_to_float)
 target_link_libraries(image-processing PUBLIC scale_from_float)
 target_link_libraries(image-processing PUBLIC clip_float)
 target_link_libraries(image-processing PUBLIC ${HALIDE_LIBRARY} ${PTHREAD_LIBRARY} ${JPEG_LIBRARY} ${PNG_LIBRARY} ${CMAKE_DL_LIBS})
+target_link_libraries(image-processing PUBLIC ${TORCH_LIBRARIES})
 
+
+# demo library runner
+add_executable(runner run.cpp)
+target_link_libraries(runner PUBLIC image-processing adaptive_contrast coloring ${HALIDE_LIBRARY})
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

@@ -24,10 +24,18 @@ public:
         Expr opacity = select(image > turnpoint, whites_mask * protect_whites, blacks_mask * protect_blacks);
         image_contrasted = image_contrasted * (1 - opacity) + image * opacity;
         adaptive_contrast(x, y, c) = image_contrasted;
+        schedule();
     }
 
     void schedule() {
-        adaptive_contrast.vectorize(x, natural_vector_size<float>()).parallel(y);
+        if (get_target().has_feature(Target::OpenGL)) {
+            input.dim(2).set_bounds(0, 3);   // specify color range for input
+            adaptive_contrast.bound(c, 0, 3);
+            adaptive_contrast.glsl(x, y, c);
+        } else {
+            // adaptive_contrast.vectorize(x, natural_vector_size<float>()).parallel(y);
+            adaptive_contrast.parallel(y);
+        }
     }
 };
 
