@@ -147,13 +147,25 @@ public:
     }
 
     void schedule() {
-        if (get_target().has_feature(Target::OpenGL)) {
-            input.dim(2).set_bounds(0, 3);   // specify color range for input
-            coloring.bound(c, 0, 3);
+        input.dim(2).set_bounds(0, 3);   // specify color range for input
+        coloring.bound(c, 0, 3);
+        if (get_target().has_feature(Target::OpenGL)) {    
             coloring.glsl(x, y, c);
+        } else if (get_target().has_feature(Target::OpenGLCompute)) {
+            // Var xt, yt;
+            coloring
+            .reorder_storage(c, x, y)
+            .reorder(c, x, y)
+            .unroll(c)
+            .parallel(y);
         } else {
-            // adaptive_contrast.vectorize(x, natural_vector_size<float>()).parallel(y);
-            coloring.parallel(y);
+            Var x_outer("x_outer"), x_inner("x_inner");
+            // coloring.vectorize(x, natural_vector_size<float>()).parallel(y);
+            coloring
+            .reorder_storage(c, x, y)
+            .reorder(c, x, y)
+            .unroll(c)
+            .parallel(y);
         }
     }
 };

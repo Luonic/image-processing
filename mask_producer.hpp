@@ -13,14 +13,15 @@ public:
 
     bool initialize_segmentation_model(std::istream& in)
     {
-        try {
+        // try {
             // Deserialize the ScriptModule from a file using torch::jit::load().
             seg_module = torch::jit::load(in);
             return true;
-        }
-        catch (const c10::Error& e) {
-            return false;
-        }
+        // }
+        // catch (const c10::Error& e) {
+        //     std::cout << e.msg() << std::endl;
+        //     return false;
+        // }
     };
 
     bool initialize_segmentation_model(const std::string& filename)

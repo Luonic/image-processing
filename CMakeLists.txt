@@ -25,11 +25,12 @@ halide_library(adaptive_contrast
 # Teal-Orange split image coloring
 halide_library(coloring 
                SRCS coloring.cpp 
-               HALIDE_TARGET host-openglcompute)
+               HALIDE_TARGET host)
 
 # sRGB to Linear RGB
 halide_library(srgb_to_linearrgb 
-               SRCS sRGB_to_linearRGB.cpp)
+               SRCS sRGB_to_linearRGB.cpp
+               HALIDE_TARGET host)
 
 # Image range scaling
 halide_library(scale_to_float SRCS normalization.cpp)
@@ -47,6 +48,10 @@ find_library(HALIDE_LIBRARY Halide ~/Code/Halide/bin)
 find_library(PTHREAD_LIBRARY pthread)
 find_library(JPEG_LIBRARY jpeg ~/Code/libjpeg-turbo/build/)
 find_library(PNG_LIBRARY png)
+find_library(GLFW_LIBRARY glfw)
+find_library(GLU_LIBRARY GLU)
+find_library(GL_LIBRARY GL)
+find_library(X11_LIBRARY X11)
 
 find_package(Torch REQUIRED)
 
@@ -58,6 +63,10 @@ target_link_libraries(image-processing PUBLIC scale_from_float)
 target_link_libraries(image-processing PUBLIC clip_float)
 target_link_libraries(image-processing PUBLIC ${HALIDE_LIBRARY} ${PTHREAD_LIBRARY} ${JPEG_LIBRARY} ${PNG_LIBRARY} ${CMAKE_DL_LIBS})
 target_link_libraries(image-processing PUBLIC ${TORCH_LIBRARIES})
+target_link_libraries(image-processing PUBLIC ${GLFW_LIBRARY})
+target_link_libraries(image-processing PUBLIC ${X11_LIBRARY})
+target_link_libraries(image-processing PUBLIC ${GLU_LIBRARY})
+target_link_libraries(image-processing PUBLIC ${GL_LIBRARY})
 
 
 # demo library runner
