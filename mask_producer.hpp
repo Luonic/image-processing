@@ -8,8 +8,8 @@
 class MaskProducer
 {
 public:
-    int BACKGROUND_CLASS_ID = 0;
-    int SKIN_CLASS_ID = 1;
+    Halide::Buffer<float> background_mask;
+    Halide::Buffer<float> skin_mask;
 
     bool initialize_segmentation_model(std::istream& in)
     {
@@ -49,30 +49,39 @@ public:
         torch::NoGradGuard no_grad;
         torch::jit::IValue output = seg_module.forward(inputs);
         auto output_tuple = output.toTuple();
-        auto binary_mask = output_tuple->elements()[0].toTensor();
+        // auto binary_mask = output_tuple->elements()[0].toTensor();
         auto prob_mask = output_tuple->elements()[1].toTensor();
-        masks = prob_mask.permute({0, 2, 1});
+        auto masks = prob_mask.permute({0, 2, 1}).to(at::kCPU);
+        background_mask = get_mask(masks, BACKGROUND_CLASS_ID);
+        skin_mask = get_mask(masks, SKIN_CLASS_ID);
     };
 
-    Halide::Buffer<float> get_mask(int class_id)
+    
+
+private:
+    int BACKGROUND_CLASS_ID = 0;
+    int SKIN_CLASS_ID = 1;
+
+    torch::jit::script::Module seg_module;
+
+    Halide::Buffer<float> get_mask(at::Tensor masks_tensor, int class_id)
     {
-        at::Tensor maskSlice = masks.slice(0, class_id, class_id + 1, 1).contiguous();
-        auto w = static_cast<int32_t>(maskSlice.size(2));
-        auto h = static_cast<int32_t>(maskSlice.size(1));
-        auto c = static_cast<int32_t>(maskSlice.size(0));
+        at::Tensor mask_slice = masks_tensor.slice(0, class_id, class_id + 1, 1).contiguous();
+        auto w = static_cast<int32_t>(mask_slice.size(2));
+        auto h = static_cast<int32_t>(mask_slice.size(1));
+        // auto c = static_cast<int32_t>(mask_slice.size(0));
         halide_dimension_t bufShape[] = {
             {0, w, 1},
             {0, h, w},
             /*{0, c, w * h}*/
         };
+        std::size_t buf_size = mask_slice.element_size() * mask_slice.numel();
+        void* buf_clone = malloc(buf_size);
+        memcpy(buf_clone, mask_slice.data_ptr(), buf_size);
         auto halideMask = Halide::Buffer<float>(
-            static_cast<float*>(maskSlice.data_ptr()), 
-            /* num of dimensions */2, 
+            static_cast<float*>(buf_clone), 
+            2, /* num of dimensions */
             bufShape);
         return halideMask;
     };
-
-private:
-    torch::jit::script::Module seg_module;
-    at::Tensor masks;
 };

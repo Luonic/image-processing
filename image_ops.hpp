@@ -39,7 +39,7 @@ class AdaptiveContrastOp : public Operation
         Runtime::Buffer<float> realize(Runtime::Buffer<float> input)
         {
             Halide::Runtime::Buffer<float> output = Halide::Runtime::Buffer<float>::make_with_shape_of(input);
-            adaptive_contrast(input, _turnpoint, _strength, _protect_whites, _protect_blacks, output);
+            // adaptive_contrast(input, _turnpoint, _strength, _protect_whites, _protect_blacks, output);
             return output;
         };
 

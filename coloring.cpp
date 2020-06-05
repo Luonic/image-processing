@@ -109,6 +109,7 @@ class Coloring : public Halide::Generator<Coloring> {
 public:
     Input<Buffer<float>> input{"input", 3};
     Input<Buffer<float>> skin_mask{"skin_mask", 2};
+    Input<Buffer<float>> background_mask{"background_mask", 2};
 
     // HSL's H angle of new color
     Input<float> skin_color_angle{"skin_color_angle"};
@@ -130,7 +131,7 @@ public:
         Func gradient_mask("gradient_mask"), skin_colorization_mask("skin_colorization_mask"), background_colorization_mask("background_colorization_mask");
         gradient_mask(x, y) = 1.0f - abs(gray(x, y) - 0.5f) * 2;
         skin_colorization_mask(x, y) = gradient_mask(x, y) * skin_mask(x, y) * skin_coloring_strength;
-        background_colorization_mask(x, y) = gradient_mask(x, y) * (1.0f - skin_mask(x, y)) * background_coloring_strength;
+        background_colorization_mask(x, y) = gradient_mask(x, y) * background_mask(x, y) * background_coloring_strength;
 
         Func skin_color_3d("skin_color_3d"), background_color_3d("background_color_3d");
         skin_color_3d(x, y, c) = select(c == 0, skin_color_angle,
