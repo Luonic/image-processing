@@ -119,10 +119,10 @@ public:
     Input<float> skin_color_saturation{"skin_color_saturation"};
     Input<float> background_color_saturation{"background_color_saturation"};
 
-    Input<float> skin_coloring_strength{"skin_coloring_strength"};
-    Input<float> background_coloring_strength{"background_coloring_strength"};
+    Input<float> skin_output_strength{"skin_output_strength"};
+    Input<float> background_output_strength{"background_output_strength"};
 
-    Output<Buffer<float>> coloring{"coloring", 3};
+    Output<Buffer<float>> output{"output", 3};
 
     void generate() {
         Func gray("gray");
@@ -130,8 +130,8 @@ public:
         
         Func gradient_mask("gradient_mask"), skin_colorization_mask("skin_colorization_mask"), background_colorization_mask("background_colorization_mask");
         gradient_mask(x, y) = 1.0f - abs(gray(x, y) - 0.5f) * 2;
-        skin_colorization_mask(x, y) = gradient_mask(x, y) * skin_mask(x, y) * skin_coloring_strength;
-        background_colorization_mask(x, y) = gradient_mask(x, y) * background_mask(x, y) * background_coloring_strength;
+        skin_colorization_mask(x, y) = gradient_mask(x, y) * skin_mask(x, y) * skin_output_strength;
+        background_colorization_mask(x, y) = gradient_mask(x, y) * background_mask(x, y) * background_output_strength;
 
         Func skin_color_3d("skin_color_3d"), background_color_3d("background_color_3d");
         skin_color_3d(x, y, c) = select(c == 0, skin_color_angle,
@@ -143,31 +143,59 @@ public:
 
         Func intermediate("intermediate");
         intermediate(x, y, c) = blend_mode_color_rgb_with_hsl(input, skin_color_3d, skin_colorization_mask)(x, y, c);
-        coloring(x, y, c) = blend_mode_color_rgb_with_hsl(intermediate, background_color_3d, background_colorization_mask)(x, y, c);
-        schedule();
-    }
+        output(x, y, c) = blend_mode_color_rgb_with_hsl(intermediate, background_color_3d, background_colorization_mask)(x, y, c);
+        
 
-    void schedule() {
+
         input.dim(2).set_bounds(0, 3);   // specify color range for input
-        coloring.bound(c, 0, 3);
-        if (get_target().has_feature(Target::OpenGL)) {    
-            coloring.glsl(x, y, c);
+        output.bound(c, 0, 3);
+        if (auto_schedule) {
+            int max_height = 1536;
+            int max_width = 2560;
+            input.dim(0).set_estimate(0, max_height);
+            input.dim(1).set_estimate(0, max_width);
+            skin_mask.dim(0).set_estimate(0, max_height);
+            skin_mask.dim(1).set_estimate(0, max_width);
+            background_mask.dim(0).set_estimate(0, max_height);
+            background_mask.dim(1).set_estimate(0, max_width);
+            output.dim(0).set_estimate(0, max_height);
+            output.dim(1).set_estimate(0, max_width);
+        } else if (get_target().has_feature(Target::OpenGL)) {    
+            output.glsl(x, y, c);
         } else if (get_target().has_feature(Target::OpenGLCompute)) {
             // Var xt, yt;
-            coloring
+            output
             .reorder_storage(c, x, y)
             .reorder(c, x, y)
             .unroll(c)
             .parallel(y);
         } else {
-            Var x_outer("x_outer"), x_inner("x_inner");
-            // coloring.vectorize(x, natural_vector_size<float>()).parallel(y);
-            coloring
-            .reorder_storage(c, x, y)
+            // Var x_outer("x_outer"), x_inner("x_inner");
+            // // output.vectorize(x, natural_vector_size<float>()).parallel(y);
+            // output
+            // .reorder_storage(c, x, y)
+            // .reorder(c, x, y)
+            // .unroll(c)
+            // .parallel(y);
+            intermediate
+            .compute_at(output, x)
             .reorder(c, x, y)
             .unroll(c)
+            // .split(x, x_outer, x_vectors, natural_vector_size(output.type()))
+            .vectorize(x, natural_vector_size(output.type()))
             .parallel(y);
+
+            output
+            .compute_root()
+            .reorder(c, x, y)
+            .unroll(c)
+            .vectorize(x, natural_vector_size(output.type()))
+            .parallel(y); 
         }
+    }
+
+    void schedule() {
+        
     }
 };
 

@@ -11,9 +11,11 @@ using namespace Halide;
 
 class Operation {
     public:
-        Operation();
-        void set_params();
-        Runtime::Buffer<float> realize(Runtime::Buffer<float> input);
+        static unsigned int const OP_ID = 0;
+        Operation() {};
+        // virtual void set_params();
+        virtual Runtime::Buffer<float> realize(Runtime::Buffer<float> input);
+        virtual ~Operation();
     
     private:
         std::string name;
@@ -22,7 +24,8 @@ class Operation {
 class AdaptiveContrastOp : public Operation
 {
     public:
-        AdaptiveContrastOp();
+        static unsigned int const OP_ID = 1;
+        AdaptiveContrastOp() {};
         void set_params(float turnpoint, float strength, float protect_whites, float protect_blacks)
         {
             _turnpoint = turnpoint;
@@ -40,6 +43,12 @@ class AdaptiveContrastOp : public Operation
         {
             Halide::Runtime::Buffer<float> output = Halide::Runtime::Buffer<float>::make_with_shape_of(input);
             // adaptive_contrast(input, _turnpoint, _strength, _protect_whites, _protect_blacks, output);
+            adaptive_contrast(output.raw_buffer(), skin_mask.raw_buffer(), background_mask.raw_buffer(), 
+                              skin_turnpoint, background_turnpoint,
+                              skin_strength, background_strength, 
+                              skin_protect_whites, background_protect_whites, 
+                              skin_protect_blacks, background_protect_blacks, 
+                              output.raw_buffer());
             return output;
         };
 

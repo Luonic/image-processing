@@ -4,6 +4,7 @@
 using namespace Halide;
 
 Var x("x"), y("y"), c("c");
+Var x_outer("x_outer"), x_vectors("x_vectors");
 
 Func adaptive_contrast(Func input, Func mask, Expr turnpoint, Expr strength, Expr protect_whites, Expr protect_blacks)
 {
@@ -40,26 +41,49 @@ public:
 
     Output<Buffer<float>> output{"output", 3};
 
-
+    
 
     void generate() {
-        Func intermediate;
+        Func intermediate("intermediate");
         intermediate(x, y, c) = adaptive_contrast(input, skin_mask, 
             Expr(skin_turnpoint), Expr(skin_strength), Expr(skin_protect_whites), Expr(skin_protect_blacks))(x, y, c);
         output(x, y, c) = adaptive_contrast(intermediate, background_mask,
             Expr(background_turnpoint), Expr(background_strength), Expr(background_protect_whites), Expr(background_protect_blacks))(x, y, c);
-        schedule();
-    }
-
-    void schedule() {
+        
         input.dim(2).set_bounds(0, 3);
         output.bound(c, 0, 3);
 
-        output
-        .reorder_storage(c, x, y)
-        .reorder(c, x, y)
-        .unroll(c)
-        .parallel(y);
+        if (auto_schedule) {
+            int max_height = 1536;
+            int max_width = 2560;
+            input.dim(0).set_estimate(0, max_height);
+            input.dim(1).set_estimate(0, max_width);
+            skin_mask.dim(0).set_estimate(0, max_height);
+            skin_mask.dim(1).set_estimate(0, max_width);
+            background_mask.dim(0).set_estimate(0, max_height);
+            background_mask.dim(1).set_estimate(0, max_width);
+            output.dim(0).set_estimate(0, max_height);
+            output.dim(1).set_estimate(0, max_width);
+        } else {
+            intermediate
+            .compute_at(output, x)
+            .reorder(c, x, y)
+            .unroll(c)
+            // .split(x, x_outer, x_vectors, natural_vector_size(output.type()))
+            .vectorize(x, natural_vector_size(output.type()))
+            .parallel(y);
+
+            output
+            .compute_root()
+            .reorder(c, x, y)
+            .unroll(c)
+            .vectorize(x, natural_vector_size(output.type()))
+            .parallel(y);  
+        } 
+    }
+
+    void schedule() {
+        
     }
 };
 

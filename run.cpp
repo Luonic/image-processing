@@ -16,6 +16,7 @@ namespace fs = std::filesystem;
 #include <clip_float.h>
 #include <adaptive_contrast.h>
 #include <coloring.h>
+#include <show_mask.h>
 #include <srgb_to_linearrgb.h>
 #include "image_load_save.hpp"
 #include "mask_producer.hpp"
@@ -53,7 +54,7 @@ int main(int argc, char **argv) {
     const unsigned char* buffer = nullptr;
     long length;
 
-    read_file_as_uchar_pointer("/home/alex/Code/image-processing/images/image3.jpg", buffer, length);
+    read_file_as_uchar_pointer("/home/alex/Code/image-processing/images/image4.jpg", buffer, length);
     
 
     Halide::Buffer<float> input = load_jpeg_from_bytes(buffer, length);
@@ -65,47 +66,19 @@ int main(int argc, char **argv) {
     read_file_as_uchar_pointer("/home/alex/Code/semi-supervised_semantic_segmentation/runs/34_hrnet-classic-transfuse-w48_BCE0.75-DICE0.25_harder-aug_finetune_dataset-5/model.ts", model_buf, model_lengh);
 
     auto model_stream = memstream(reinterpret_cast<const char*>(model_buf), model_lengh);
-    // char* b = static_cast<char*>(malloc(1));
-    // model_stream.read(b, 1);
-    // std::cout << *b << std::endl;
-    // model_stream.read(b, 1);
-    // std::cout << *b << std::endl;
-    // model_stream.read(b, 1);
-    // std::cout << *b << std::endl;
-    // model_stream.read(b, 1);
-    // std::cout << *b << std::endl;
-    // model_stream.read(b, 1);
-    // std::cout << *b << std::endl;
-    // model_stream.read(b, 1);
-    // std::cout << *b << std::endl;
-
-    // model_stream.seekg(0);
-    // model_stream.read(b, 1);
-    // std::cout << *b << std::endl;
-    // model_stream.seekg(0);
-
-    // uint8_t first_short[2];
-    // model_stream.read(reinterpret_cast<char*>(&first_short), 2);
-    // std::cout << (int(first_short[0]) == 0x80) << (first_short[1] == 0x02) <<std::endl;
 
     bool is_initialized = mp.initialize_segmentation_model(model_stream);
     std::cout << is_initialized << std::endl;
-    // mp.initialize_segmentation_model("/home/alex/Code/semi-supervised_semantic_segmentation/runs/34_hrnet-classic-transfuse-w48_BCE0.75-DICE0.25_harder-aug_finetune_dataset-5/model.ts");
     mp.predict(input);
 
     Halide::Buffer<float>& skin_mask = mp.skin_mask;
     Halide::Buffer<float>& background_mask = mp.background_mask;
-
-    // Halide::Func apply_mask;
-    // Halide::Var x, y, c;
-    // apply_mask(x, y, c) = input(x, y, c) * background_mask(x, y);
-    // apply_mask.parallel(y);
     
-    float skin_turnpoint = 0.5f;
-    float background_turnpoint = 0.5f;
+    float skin_turnpoint = 0.2f;
+    float background_turnpoint = 0.2f;
 
-    float skin_strength = 2.0f;
-    float background_strength = 2.0f;
+    float skin_strength = 1.5f;
+    float background_strength = 1.5f;
 
     float skin_protect_whites = 1.0;
     float background_protect_whites = 1.0;
@@ -120,13 +93,13 @@ int main(int argc, char **argv) {
 
     input.set_host_dirty();
 
-    float skin_coloring_strength = 0.5f;
+    float skin_coloring_strength = 0.75f;
     float skin_coloring_angle = 20;
-    float skin_coloring_saturation = 0.25f; // 0.3
+    float skin_coloring_saturation = 0.3f; // 0.3
 
     float background_coloring_strength = 0.5f;
     float background_coloring_angle = 200;
-    float background_coloring_saturation = 0.25f;
+    float background_coloring_saturation = 0.3f;
 
     coloring(input.raw_buffer(), skin_mask.raw_buffer(), background_mask.raw_buffer(),
              skin_coloring_angle, background_coloring_angle, 
@@ -144,6 +117,7 @@ int main(int argc, char **argv) {
 
     output.copy_to_host();
     clip_float(output.raw_buffer(), output.raw_buffer());
+    // show_mask(skin_mask.raw_buffer(), output.raw_buffer());
     
     auto t2 = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
